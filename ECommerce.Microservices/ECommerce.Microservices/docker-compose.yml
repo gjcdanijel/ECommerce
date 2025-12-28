@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ecommerce-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecommerce-network
+
+  catalog-api:
+    build:
+      context: .
+      dockerfile: src/Services/Catalog.API/Dockerfile
+    container_name: ecommerce-catalog
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  customers-api:
+    build:
+      context: .
+      dockerfile: src/Services/Customers.API/Dockerfile
+    container_name: ecommerce-customers
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:80
+    networks:
+      - ecommerce-network
+
+  orders-api:
+    build:
+      context: .
+      dockerfile: src/Services/Orders.API/Dockerfile
+    container_name: ecommerce-orders
+    ports:
+      - "5003:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      catalog-api:
+        condition: service_started
+      customers-api:
+        condition: service_started
+    networks:
+      - ecommerce-network
+
+  payments-api:
+    build:
+      context: .
+      dockerfile: src/Services/Payments.API/Dockerfile
+    container_name: ecommerce-payments
+    ports:
+      - "5004:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      orders-api:
+        condition: service_started
+    networks:
+      - ecommerce-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: src/Gateway/Dockerfile
+    container_name: ecommerce-gateway
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      - catalog-api
+      - customers-api
+      - orders-api
+      - payments-api
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: bridge

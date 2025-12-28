@@ -1,0 +1,19 @@
+# Build rezultati
+**/bin/
+**/obj/
+
+# IDE
+.idea/
+.vs/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker
+**/docker-compose.override.yml
